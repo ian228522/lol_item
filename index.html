@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>裝備價值計算器（標籤＋分頁＋搜尋＋標籤篩選）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+  background:#121212;
+  color:#eee;
+  font-family:"Noto Sans TC",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  margin:0;
+  padding:0;
+}
+h1{
+  text-align:center;
+  color:#80cbc4;
+  margin:10px 0 6px;
+}
+h2{
+  color:#b2dfdb;
+  margin:6px 0;
+}
+h3{
+  color:#b2dfdb;
+  margin:6px 0;
+  font-size:0.95rem;
+}
+.app-shell{
+  display:grid;
+  grid-template-columns:200px minmax(0,1fr);
+  min-height:calc(100vh - 40px);
+  padding:10px 10px 20px;
+  gap:10px;
+}
+@media(max-width:900px){
+  .app-shell{
+    grid-template-columns:1fr;
+  }
+}
+.sidebar{
+  background:#1b1b1b;
+  border-radius:10px;
+  padding:10px;
+  box-shadow:0 0 0 1px #262626;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.sidebar-title{
+  font-size:0.9rem;
+  color:#b0bec5;
+  margin-bottom:4px;
+}
+.nav-btn{
+  width:100%;
+  text-align:left;
+  border-radius:8px;
+  border:1px solid #333;
+  background:#101010;
+  color:#eee;
+  padding:6px 8px;
+  font-size:0.86rem;
+  cursor:pointer;
+}
+.nav-btn.active{
+  background:#3949ab;
+  border-color:#5c6bc0;
+}
+.nav-btn:hover{
+  background:#2b2b2b;
+}
+.main{
+  min-width:0;
+}
+.card{
+  background:#1e1e1e;
+  border-radius:10px;
+  padding:12px;
+  box-shadow:0 0 0 1px #262626;
+  margin-bottom:10px;
+}
+.container-2col{
+  display:grid;
+  grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr);
+  gap:12px;
+}
+@media(max-width:900px){
+  .container-2col{
+    grid-template-columns:1fr;
+  }
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:.85rem;
+}
+th,td{
+  border-bottom:1px solid #333;
+  padding:4px;
+  vertical-align:top;
+}
+th{
+  background:#202020;
+}
+input,button,select{
+  background:#101010;
+  color:#eee;
+  border:1px solid #444;
+  border-radius:6px;
+  padding:4px;
+  font-size:.82rem;
+}
+button{
+  cursor:pointer;
+}
+button:hover{
+  background:#2b2b2b;
+}
+.small{
+  font-size:.78rem;
+  color:#bbb;
+}
+.right{text-align:right;}
+.good{color:#7fe07f;font-weight:600;}
+.bad{color:#ff8a80;font-weight:600;}
+.flex{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin:6px 0;
+}
+.tag{
+  display:inline-block;
+  padding:2px 6px;
+  border-radius:999px;
+  background:#263238;
+  color:#b0bec5;
+  font-size:.7rem;
+  margin:2px 4px 2px 0;
+}
+.tag-row{margin-top:2px;}
+.tag-filter{
+  display:inline-block;
+  padding:2px 6px;
+  border-radius:999px;
+  background:#263238;
+  color:#b0bec5;
+  font-size:.7rem;
+  margin:2px 4px 2px 0;
+  cursor:pointer;
+}
+.tag-filter.selected{
+  background:#ffb300;
+  color:#000;
+}
+.attrtext{color:#b0bec5;font-size:.8rem;}
+.search-input{
+  width:100%;
+}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+
+<h1>裝備價值計算器</h1>
+
+<div class="app-shell">
+  <div class="sidebar">
+    <div class="sidebar-title">頁面切換</div>
+    <button type="button" class="nav-btn active" id="navEdit" onclick="showPage('edit')">基礎 & 當前裝備</button>
+    <button type="button" class="nav-btn" id="navList" onclick="showPage('list')">裝備列表</button>
+  </div>
+
+  <div class="main">
+    <!-- Page: 編輯基礎 / 當前裝備 -->
+    <div id="page-edit">
+      <div class="container-2col">
+        <!-- 左：基礎屬性 & 標籤 -->
+        <div class="card">
+          <h2>一、基礎屬性</h2>
+          <table>
+            <thead>
+              <tr><th>屬性名稱</th><th>基準數值</th><th>基準價格</th><th></th></tr>
+            </thead>
+            <tbody id="baseBody"></tbody>
+          </table>
+          <div class="flex">
+            <button type="button" onclick="addBase()">＋ 新增基礎屬性</button>
+            <button type="button" onclick="updateAll()">🔄 更新計算</button>
+          </div>
+
+          <h2 style="margin-top:10px">屬性單價</h2>
+          <table>
+            <thead><tr><th>屬性</th><th class="right">單價</th></tr></thead>
+            <tbody id="unitBody"></tbody>
+          </table>
+
+          <h2 style="margin-top:10px">標籤列表</h2>
+          <p class="small">
+            基礎屬性的「屬性名稱」會自動變成標籤。<br>
+            你也可以在下面額外新增自訂標籤（例如：神話、穿甲、暴擊）。
+          </p>
+          <div id="tagList" class="tag-row"></div>
+          <div class="flex">
+            <input id="newTagInput" placeholder="新增標籤名稱" style="flex:1">
+            <button type="button" onclick="addManualTag()">＋ 新增標籤</button>
+          </div>
+        </div>
+
+        <!-- 右：當前裝備 -->
+        <div class="card">
+          <h2>二、當前裝備</h2>
+
+          <div class="flex">
+            <span>名稱：</span>
+            <input id="equipName" style="flex:1" placeholder="星蝕">
+          </div>
+          <div class="flex">
+            <span>價格：</span>
+            <input id="equipPrice" type="number" placeholder="2900">
+          </div>
+
+          <h3 style="margin-top:8px">裝備標籤</h3>
+          <div class="flex">
+            <select id="equipTagSelect" style="flex:1">
+              <!-- options 動態產生 -->
+            </select>
+            <button type="button" onclick="addTagToCurrent()">＋ 加入標籤</button>
+          </div>
+          <div id="equipTagRow" class="tag-row small"></div>
+
+          <h3 style="margin-top:8px">裝備屬性 / 被動</h3>
+          <table>
+            <thead><tr><th>屬性 / 被動</th><th>數值</th><th></th></tr></thead>
+            <tbody id="equipBody"></tbody>
+          </table>
+          <div class="flex">
+            <button type="button" onclick="addEquip()">＋ 新增屬性</button>
+            <button type="button" onclick="updateAll()">🔄 更新計算</button>
+            <button type="button" onclick="addEquipToList()">＋ 加入裝備列表</button>
+          </div>
+
+          <h2>當前計算結果</h2>
+          <div id="result" class="small">尚未計算</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page: 裝備列表 -->
+    <div id="page-list" class="hidden">
+      <div class="card">
+        <h2>裝備列表</h2>
+        <p class="small">左側可輸入名稱關鍵字，右側可點選標籤來篩選。</p>
+        <div class="flex" style="align-items:flex-start;">
+          <div style="flex:1 1 40%;min-width:140px;">
+            <input id="equipSearch" class="search-input" placeholder="搜尋裝備名稱…" oninput="renderEquipList()">
+          </div>
+          <div id="filterTagRow" style="flex:1 1 60%;min-width:160px;">
+            <!-- 篩選用標籤 -->
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>裝備 / 標籤</th>
+              <th class="right">價格</th>
+              <th class="right">屬性價值</th>
+              <th class="right">效率</th>
+              <th>屬性 / 被動</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="equipListBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 防止注音 Enter 造成奇怪行為
+document.addEventListener("keydown", e=>{ if(e.key==="Enter") e.preventDefault(); });
+
+// 分頁切換
+function showPage(which){
+  const edit = document.getElementById("page-edit");
+  const list = document.getElementById("page-list");
+  const navEdit = document.getElementById("navEdit");
+  const navList = document.getElementById("navList");
+  if(which === "edit"){
+    edit.classList.remove("hidden");
+    list.classList.add("hidden");
+    navEdit.classList.add("active");
+    navList.classList.remove("active");
+  }else{
+    edit.classList.add("hidden");
+    list.classList.remove("hidden");
+    navEdit.classList.remove("active");
+    navList.classList.add("active");
+  }
+}
+
+// 資料結構
+let base=[], equip=[], manualUnits={}, equipList=[], nextId=1;
+let manualTags=[];        // 額外標籤
+let currentEquipTags=[];  // 當前裝備已選標籤
+let selectedFilterTags=[]; // 裝備列表篩選用標籤
+
+function addBase(s="",v="",p=""){ base.push({s,v,p}); renderAll(); }
+function addEquip(s="",v=""){ equip.push({s,v}); renderAll(); }
+
+function autoUnits(){
+  const m={};
+  base.forEach(r=>{
+    const s=(r.s||"").trim(), v=parseFloat(r.v), p=parseFloat(r.p);
+    if(s && !m[s] && v>0 && p>0) m[s]=p/v;
+  });
+  return m;
+}
+
+function unitOf(s,a){ return manualUnits[s]??a[s]??0; }
+
+// 標籤相關
+function getAllTags(){
+  const fromBase = base.map(r=>(r.s||"").trim()).filter(Boolean);
+  const all = new Set([...fromBase, ...manualTags]);
+  return [...all];
+}
+
+function addManualTag(){
+  const input = document.getElementById("newTagInput");
+  const name = input.value.trim();
+  if(!name) return;
+  if(!manualTags.includes(name)) manualTags.push(name);
+  input.value="";
+  renderAll();
+}
+
+function addTagToCurrent(){
+  const sel = document.getElementById("equipTagSelect");
+  const val = sel.value;
+  if(!val) return;
+  if(!currentEquipTags.includes(val)) currentEquipTags.push(val);
+  renderEquipTags();
+}
+
+function removeTagFromCurrent(tag){
+  currentEquipTags = currentEquipTags.filter(t=>t!==tag);
+  renderEquipTags();
+}
+
+function renderEquipTags(){
+  const div = document.getElementById("equipTagRow");
+  if(currentEquipTags.length===0){
+    div.innerHTML = '<span class="small">（尚未選擇標籤）</span>';
+    return;
+  }
+  div.innerHTML = currentEquipTags.map(t =>
+    `<span class="tag">${t} <a href="javascript:void(0)" onclick="removeTagFromCurrent('${t.replace(/'/g,"\\'")}')" style="color:#ff8a80;text-decoration:none;">×</a></span>`
+  ).join("");
+}
+
+// 切換列表篩選標籤
+function toggleFilterTag(tag){
+  const idx = selectedFilterTags.indexOf(tag);
+  if(idx === -1) selectedFilterTags.push(tag);
+  else selectedFilterTags.splice(idx,1);
+  renderEquipList();
+}
+
+// 計算當前裝備
+function computeCurrent(a){
+  const name = document.getElementById("equipName").value || "未命名裝備";
+  const price = parseFloat(document.getElementById("equipPrice").value);
+  let sum=0;
+  const attrs=[];
+  equip.forEach(r=>{
+    const s=(r.s||"").trim();
+    const v=parseFloat(r.v)||0;
+    if(!s) return;
+    sum += unitOf(s,a)*v;
+    attrs.push(`${s}:${v}`);
+  });
+  return {
+    name,
+    price:!isNaN(price)?price:null,
+    sum,
+    ratio:price?sum/price:null,
+    attrText:attrs.join("、"),
+    tags:[...currentEquipTags]
+  };
+}
+
+function updateAll(){ renderAll(); }
+
+function renderAll(){
+  const a = autoUnits();
+  const allTags = getAllTags();
+
+  // 基礎屬性表
+  baseBody.innerHTML = "";
+  base.forEach((r,i)=>{
+    baseBody.innerHTML += `
+<tr>
+  <td><input value="${r.s}" oninput="base[${i}].s=this.value"></td>
+  <td><input type="number" value="${r.v}" oninput="base[${i}].v=this.value"></td>
+  <td><input type="number" value="${r.p}" oninput="base[${i}].p=this.value"></td>
+  <td><button type="button" onclick="base.splice(${i},1);renderAll()">✕</button></td>
+</tr>`;
+  });
+
+  // 單價表
+  unitBody.innerHTML = "";
+  [...new Set([...Object.keys(a), ...Object.keys(manualUnits), ...equip.map(e=>e.s).filter(Boolean)])]
+    .forEach(s=>{
+      unitBody.innerHTML += `
+<tr data-s="${s}">
+  <td>${s}</td>
+  <td class="right">${unitOf(s,a).toFixed(2)}</td>
+</tr>`;
+    });
+
+  // 標籤列表（左頁展示用）
+  const tagDiv = document.getElementById("tagList");
+  if(allTags.length===0){
+    tagDiv.innerHTML = '<span class="small">目前沒有任何標籤。</span>';
+  }else{
+    tagDiv.innerHTML = allTags.map(t=>`<span class="tag">${t}</span>`).join("");
+  }
+
+  // 裝備標籤下拉
+  const sel = document.getElementById("equipTagSelect");
+  sel.innerHTML = '<option value="">選擇標籤...</option>' +
+    allTags.map(t=>`<option value="${t}">${t}</option>`).join("");
+
+  // 裝備屬性表
+  equipBody.innerHTML = "";
+  equip.forEach((r,i)=>{
+    equipBody.innerHTML += `
+<tr>
+  <td><input value="${r.s}" oninput="equip[${i}].s=this.value"></td>
+  <td><input type="number" value="${r.v}" oninput="equip[${i}].v=this.value"></td>
+  <td><button type="button" onclick="equip.splice(${i},1);renderAll()">✕</button></td>
+</tr>`;
+  });
+
+  // 當前裝備結果
+  const c = computeCurrent(a);
+  const res = document.getElementById("result");
+  let html = `屬性價值：${c.sum.toFixed(1)}`;
+  if(c.price!=null){
+    html += `<br>效率：${(c.ratio*100).toFixed(1)}%`;
+  }
+  res.innerHTML = html;
+
+  // 當前裝備標籤顯示
+  renderEquipTags();
+
+  // 裝備列表（含標籤篩選顯示）
+  renderEquipList();
+}
+
+// 新增裝備到列表
+function addEquipToList(){
+  const a = autoUnits();
+  const c = computeCurrent(a);
+  if(!c.attrText){
+    alert("請先輸入裝備屬性");
+    return;
+  }
+  equipList.push({id:nextId++, ...c});
+  renderEquipList();
+}
+
+// 渲染裝備列表（支援名稱搜尋＋標籤篩選）
+function renderEquipList(){
+  const tbody = document.getElementById("equipListBody");
+  if(!tbody) return;
+  const searchInput = document.getElementById("equipSearch");
+  const q = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+  const allTags = getAllTags();
+  const filterDiv = document.getElementById("filterTagRow");
+  if(filterDiv){
+    if(allTags.length===0){
+      filterDiv.innerHTML = '<span class="small">目前沒有標籤可供篩選。</span>';
+    }else{
+      filterDiv.innerHTML = allTags.map(t => {
+        const selected = selectedFilterTags.includes(t);
+        const safe = t.replace(/'/g,"\\'");
+        return `<span class="tag-filter ${selected?'selected':''}" onclick="toggleFilterTag('${safe}')">${t}</span>`;
+      }).join("");
+    }
+  }
+
+  tbody.innerHTML = "";
+  equipList.forEach(e=>{
+    const nameLower = (e.name||"").toLowerCase();
+    if(q && !nameLower.includes(q)) return;
+
+    // 若有選擇標籤，需全部符合（AND 篩選）
+    if(selectedFilterTags.length){
+      const itemTags = e.tags || [];
+      const ok = selectedFilterTags.every(t => itemTags.includes(t));
+      if(!ok) return;
+    }
+
+    const tagHtml = e.tags && e.tags.length
+      ? e.tags.map(t=>`<span class="tag">${t}</span>`).join("")
+      : '<span class="small">（無標籤）</span>';
+    const ratioText = e.ratio ? (e.ratio*100).toFixed(1)+"%" : "-";
+    const ratioClass = e.ratio ? (e.ratio>=1?"good":"bad") : "";
+    tbody.innerHTML += `
+<tr>
+  <td>
+    <div>${e.name}</div>
+    <div class="tag-row">${tagHtml}</div>
+  </td>
+  <td class="right">${(e.price??0).toFixed(0)}</td>
+  <td class="right">${e.sum.toFixed(1)}</td>
+  <td class="right"><span class="${ratioClass}">${ratioText}</span></td>
+  <td class="attrtext">${e.attrText}</td>
+  <td><button type="button" onclick="equipList=equipList.filter(x=>x.id!==${e.id});renderEquipList()">✕</button></td>
+</tr>`;
+  });
+}
+
+// 單價右鍵設定
+unitBody.addEventListener("contextmenu", e=>{
+  const tr = e.target.closest("tr"); if(!tr) return;
+  e.preventDefault();
+  const s = tr.dataset.s;
+  const a = autoUnits();
+  const cur = manualUnits[s]??unitOf(s,a);
+  const v = prompt(`設定「${s}」的每 1 單位金額（留空刪除手動設定）`, isNaN(cur)?"":cur);
+  if(v===null) return;
+  const t = v.trim();
+  if(!t){ delete manualUnits[s]; }
+  else{
+    const num = parseFloat(t);
+    if(isNaN(num)){ alert("請輸入數字"); return; }
+    manualUnits[s]=num;
+  }
+  renderAll();
+});
+
+// 初始化
+addBase("攻擊力",10,350);
+addEquip();
+renderAll();
+showPage("edit");
+</script>
+
+</body>
+</html>
