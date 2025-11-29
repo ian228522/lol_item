@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>裝備價值計算器（標籤＋分頁＋搜尋＋標籤篩選）</title>
+<title>裝備價值計算器（標籤＋分頁＋搜尋＋標籤篩選＋JS匯出/匯入）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body{
@@ -28,7 +28,7 @@ h3{
 }
 .app-shell{
   display:grid;
-  grid-template-columns:200px minmax(0,1fr);
+  grid-template-columns:220px minmax(0,1fr);
   min-height:calc(100vh - 40px);
   padding:10px 10px 20px;
   gap:10px;
@@ -69,6 +69,15 @@ h3{
 }
 .nav-btn:hover{
   background:#2b2b2b;
+}
+.side-section-title{
+  margin-top:10px;
+  font-size:0.84rem;
+  color:#90a4ae;
+}
+.small{
+  font-size:.78rem;
+  color:#bbb;
 }
 .main{
   min-width:0;
@@ -116,10 +125,6 @@ button{
 }
 button:hover{
   background:#2b2b2b;
-}
-.small{
-  font-size:.78rem;
-  color:#bbb;
 }
 .right{text-align:right;}
 .good{color:#7fe07f;font-weight:600;}
@@ -171,6 +176,16 @@ button:hover{
     <div class="sidebar-title">頁面切換</div>
     <button type="button" class="nav-btn active" id="navEdit" onclick="showPage('edit')">基礎 & 當前裝備</button>
     <button type="button" class="nav-btn" id="navList" onclick="showPage('list')">裝備列表</button>
+
+    <div class="side-section-title">資料存取</div>
+    <button type="button" class="nav-btn" onclick="exportToJS()">⬇ 匯出 JS 檔</button>
+    <label class="nav-btn" style="display:block;position:relative;overflow:hidden;">
+      ⬆ 匯入 JS / JSON
+      <input id="importFile" type="file" accept=".js,.json" style="position:absolute;opacity:0;left:0;top:0;width:100%;height:100%;cursor:pointer;" onchange="importFromFile(this)">
+    </label>
+    <div class="small">
+      匯出會產生一個 <code>equip_data.js</code>，下次可在這裡匯入，恢復基礎屬性 / 標籤 / 裝備列表設定。
+    </div>
   </div>
 
   <div class="main">
@@ -545,6 +560,67 @@ unitBody.addEventListener("contextmenu", e=>{
   }
   renderAll();
 });
+
+// 匯出為 JS 檔
+function exportToJS(){
+  const data = {
+    base,
+    manualUnits,
+    manualTags,
+    equipList
+  };
+  const jsContent = "window.EQUIP_DATA = " + JSON.stringify(data, null, 2) + ";\n";
+  const blob = new Blob([jsContent], {type:"application/javascript"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "equip_data.js";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 匯入 JS / JSON 檔
+function importFromFile(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result || "";
+    let loaded = null;
+    try{
+      // 先嘗試當 JSON
+      loaded = JSON.parse(text);
+    }catch(_){
+      try{
+        // 再嘗試當 JS：期待有 window.EQUIP_DATA = {...};
+        const fn = new Function("let window = {}; " + text + "; return window.EQUIP_DATA || (typeof EQUIP_DATA!=='undefined' ? EQUIP_DATA : null);");
+        loaded = fn();
+      }catch(err){
+        console.error(err);
+      }
+    }
+    if(!loaded){
+      alert("無法讀取檔案內容，請確認是先前匯出的 JS / JSON。");
+      input.value="";
+      return;
+    }
+    // 應用資料
+    base = Array.isArray(loaded.base)? loaded.base : [];
+    manualUnits = loaded.manualUnits || {};
+    manualTags = Array.isArray(loaded.manualTags)? loaded.manualTags : [];
+    equipList = Array.isArray(loaded.equipList)? loaded.equipList : [];
+    // 重設當前裝備 & 標籤
+    equip = [];
+    currentEquipTags = [];
+    nextId = (equipList.reduce((m,e)=>Math.max(m,e.id||0),0) || 0) + 1;
+    input.value="";
+    renderAll();
+    alert("匯入完成！已套用先前的屬性 / 標籤 / 裝備列表。");
+  };
+  reader.readAsText(file, "utf-8");
+}
 
 // 初始化
 addBase("攻擊力",10,350);
